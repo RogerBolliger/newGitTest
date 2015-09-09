@@ -1,72 +1,74 @@
-<div class="col-md-3">
-
-    <div class="btn-group-vertical" role="group">
-        <div class="btn-file btn btn-primary" style="text-align:left">
+<div class="col-md-8">
+    <div class="btn-group btn-group-md" role="group">
+        <!--
+        <a class="btn btn-warning" style="text-align:left"
+           ng-href="http://localhost:8080/cgi-bin/cgiip.exe/WService=wsbroker1/adz/download.p?serviceName=downloadFile&file=web.lg"
+           ng-click="downloadRates()" ng-disabled="btnDownRates">
+            <span class="glyphicon glyphicon-download"></span> Download Rates
+        </a>
+        -->
+        <a class="btn btn-warning" style="text-align:left"
+           ng-href="#/google"
+           ng-click="downloadRates()" ng-disabled="btnDownRates">
+            <span class="glyphicon glyphicon-download"></span> Download Rates
+        </a>
+        <div class="btn-file btn btn-primary" ng-disabled="btnBrowse" style="text-align:left">
             <span class="glyphicon glyphicon-file"></span>  Browse
-            <input type="file" name="file" accept="*/*" multiple onchange="angular.element(this).scope().addToFileList(this)">
+            <input type="file" name="file" accept="*/*" ng-disabled="btnBrowse" multiple onchange="angular.element(this).scope().addToFileList(this)">
         </div>
-
-        <button type="button" class="btn btn-success" style="text-align:left" ng-click="uploadFileList()" ng-disabled="">
+        <button type="button" class="btn btn-success" style="text-align:left" ng-click="uploadFileList()" ng-disabled="btnUpload">
             <i class="glyphicon glyphicon-upload"></i> Upload
         </button>
-        <button type="button" class="btn btn-warning" style="text-align:left">
-            <span class="glyphicon glyphicon-download"></span> Download
+        <button type="button" class="btn btn-warning" style="text-align:left" ng-click="importData()" ng-disabled="btnImport">
+            <i class="fa fa-database"></i> Import
         </button>
-
-        <button type="button" class="btn btn-info" style="text-align:left">
-            <span class="glyphicon glyphicon-download"></span> Log
+        <button type="button" class="btn btn-info" style="text-align:left" ng-click="ImportLog()" ng-disabled="btnImpLog">
+            <span class="glyphicon glyphicon-download"></span> Import Log
         </button>
-        <button type="button" class="btn btn-danger" style="text-align:left">
+        <button type="button" class="btn btn-danger" style="text-align:left" ng-click="processData()" ng-disabled="btnProcess">
             <span class="glyphicon glyphicon-cog"></span> Process
         </button>
+        <button type="button" class="btn btn-warning" style="text-align:left" ng-click="downloadReport()" ng-disabled="btnDownReport">
+            <span class="glyphicon glyphicon-download"></span> Download Report
+            <my-download id="content" get-data="getBlob()" />
+        </button>
+
+
     </div>
 
 </div>
-<div class="col-md-6" style="margin-bottom: 40px">
+
+<div class="col-md-6" style="margin-bottom: 40px; margin-top: 20px">
 
     <table class="table">
         <thead>
         <tr>
-            <th width="50%">Name</th>
+            <th>Name</th>
             <th>Size</th>
             <th>Progress</th>
+            <th>Progress</th>
             <th>Status</th>
-            <th>Actions</th>
         </tr>
         </thead>
         <tbody>
         <tr ng-repeat="file in files">
             <td><strong>{{ file.name }}</strong></td>
             <td nowrap>{{ file.size/1024|number:2 }} kB</td>
-
             <td>
                 <div class="progress" style="margin-bottom: 0;">
-                    <div class="progress-bar" role="progressbar" ng-style="{ 'width': file.progress + '%' }"></div>
+                    <div class="progress-bar progress-bar-striped active" role="progressbar" style="min-width: 2em" ng-style="{ 'width': file.progressBar + '%'}">{{file.progressBar}}%</div>
                 </div>
             </td>
+            <td>{{file.progressTxt}}</td>
             <td class="text-center">
                 <span ng-show="file.isSuccess"><i class="glyphicon glyphicon-ok"></i></span>
                 <span ng-show="file.isCancel"><i class="glyphicon glyphicon-ban-circle"></i></span>
                 <span ng-show="file.isError"><i class="glyphicon glyphicon-remove"></i></span>
             </td>
-            <td><p id="loaded_n_total"></p></td>
-
-
-            <td nowrap>
-                <button type="button" class="btn btn-success btn-xs" ng-click="file.upload()" ng-disabled="">
-                    <span class="glyphicon glyphicon-upload"></span> Log
-                </button>
-                <button type="button" class="btn btn-warning btn-xs" ng-click="file.cancel()" ng-disabled="">
-                    <span class="glyphicon glyphicon-ban-circle"></span> Import Rates
-                </button>
-                <button type="button" class="btn btn-danger btn-xs" ng-click="file.remove()">
-                    <span class="glyphicon glyphicon-trash"></span> Remove
-                </button>
-            </td>
-
         </tr>
         </tbody>
     </table>
 
 
 </div>
+

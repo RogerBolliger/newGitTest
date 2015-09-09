@@ -7,6 +7,7 @@ app.config(function ($routeProvider) {
     .when('/', {controller: 'listController', templateUrl: 'partials/list.html'})
     .when('/upload', {controller: 'uploadFilesCtrl', templateUrl: 'partials/uploadFiles.html'})
     .when('/upload1', {controller: 'uploadFiles1Ctrl', templateUrl: 'partials/uploadFiles1.html'})
+    .when('/google', {templateUrl: 'https://www.google.ch'})
     .otherwise({ redirectTo: '/' });
 
 });

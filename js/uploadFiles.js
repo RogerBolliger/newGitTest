@@ -1,11 +1,24 @@
+
+/********** Controller für Upload **********************/
 app.controller("uploadFilesCtrl", ['$scope', 'uploadService', function ($scope, uploadService) {
 
     var rootUrl = 'http://localhost:8080/cgi-bin/cgiip.exe/WService=wsbroker1/adz/user.p?serviceName=uploadFile';
 
+    $scope.btnDownRates  = '';
+    $scope.btnBrowse     = '';
+    $scope.btnUpload     = 'false';
+    $scope.btnImport     = 'false';
+    $scope.btnImpLog     = 'false';
+    $scope.btnProcess    = 'false';
+    $scope.btnDownReport = '';
+
     $scope.addToFileList = function(element) {
 
         for (i=0; i < element.files.length; i++){
-         element.files[i].progress  = 0;
+         element.files[i].progressBar  = 0;
+         element.files[i].progressTxt  = '';
+         element.files[i].completeTxt  = '';
+
          element.files[i].isSuccess = false;
          element.files[i].isCancel  = false;
          element.files[i].isError   = false;
@@ -13,6 +26,7 @@ app.controller("uploadFilesCtrl", ['$scope', 'uploadService', function ($scope, 
         $scope.$apply(function ($scope) {
             $scope.files = element.files;
         });
+        $scope.btnUpload = '';
     }
 
     $scope.callObj = function(type, data){
@@ -22,7 +36,9 @@ app.controller("uploadFilesCtrl", ['$scope', 'uploadService', function ($scope, 
       }
       // Upload progress
       else if (type = '2') {
-        $scope.files = data;
+        $scope.$apply(function($scope){
+          $scope.files = data;
+        });
       }
     }
 
@@ -30,8 +46,16 @@ app.controller("uploadFilesCtrl", ['$scope', 'uploadService', function ($scope, 
         uploadService.uploadFile($scope.files,$scope.callObj);
     }
 
+    var data = {a:1, b:2, c:3};
+    var json = JSON.stringify(data);
+    $scope.getBlob = function(){
+        return new Blob([json], {type: "application/json"});
+    }
+
+
 }]);
 
+/********** Factory für Upload **********************/
 app.factory('uploadService', ['$http', function ($http) {
     var svc = {};
 
@@ -51,32 +75,35 @@ app.factory('uploadService', ['$http', function ($http) {
         formdata.append("file", file);
         var ajax = new XMLHttpRequest();
         ajax.upload.addEventListener("progress", progressHandler, false);
-        /*
         ajax.addEventListener("load", completeHandler, false);
         ajax.addEventListener("error", errorHandler, false);
         ajax.addEventListener("abort", abortHandler, false);
-        */
+
         ajax.open("POST", url);
         ajax.send(formdata);
     }
 
-    function _(el){
-        return document.getElementById(el);
-    }
-
     function progressHandler(event){
        //console.log(event);
-        file.progress = (event.loaded / event.total) * 100;
+
+        file.progressBar = Math.round((event.loaded / event.total) * 100);
+        file.progressTxt = "Uploaded "+(event.loaded/1024).toFixed(0)+" bytes of "+(event.total/1024).toFixed(0);
         gcallObj('2',gfiles);
 
+    }
 
-        //svc.progress = "Uploaded "+event.loaded+" bytes of "+event.total;
-        //_("loaded_n_total").innerHTML = "Uploaded "+event.loaded+" bytes of "+event.total;
-        /*
-        var percent = (event.loaded / event.total) * 100;
-        _("progressBar").value = Math.round(percent);
-        _("status").innerHTML = Math.round(percent)+"% uploaded... please wait";
-        */
+    function completeHandler(event){
+	    file.completeTxt = event.target.responseText;
+	    file.isSuccess = true;
+        gcallObj('2',gfiles);
+    }
+    function errorHandler(event){
+	    file.isError = true;
+        gcallObj('2',gfiles);
+    }
+    function abortHandler(event){
+    	file.isCancel = true;
+        gcallObj('2',gfiles);
     }
 
     svc.uploadfiles = function(files,callObj){
@@ -119,4 +146,18 @@ app.factory('uploadService', ['$http', function ($http) {
 
 }]);
 
-
+app.directive('myDownload', function ($compile) {
+    return {
+        restrict:'E',
+        scope:{ getUrlData:'&getData'},
+        link:function (scope, elm, attrs) {
+            var url = URL.createObjectURL(scope.getUrlData());
+            elm.append($compile(
+                '<a class="btn" download="backup.json"' +
+                    'href="' + url + '">' +
+                    'Download' +
+                    '</a>'
+            )(scope));
+        }
+    };
+});
