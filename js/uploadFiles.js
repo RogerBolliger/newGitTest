@@ -6,7 +6,7 @@ app.controller("uploadFilesCtrl", ['$scope', 'uploadService', function ($scope, 
 
     $scope.btnDownRates  = '';
     $scope.btnBrowse     = '';
-    $scope.btnUpload     = 'false';
+    $scope.btnUpload     = '';
     $scope.btnImport     = 'false';
     $scope.btnImpLog     = 'false';
     $scope.btnProcess    = 'false';
@@ -18,6 +18,7 @@ app.controller("uploadFilesCtrl", ['$scope', 'uploadService', function ($scope, 
          element.files[i].progressBar  = 0;
          element.files[i].progressTxt  = '';
          element.files[i].completeTxt  = '';
+         element.files[i].completeStatus  = '';
 
          element.files[i].isSuccess = false;
          element.files[i].isCancel  = false;
@@ -32,7 +33,12 @@ app.controller("uploadFilesCtrl", ['$scope', 'uploadService', function ($scope, 
     $scope.callObj = function(type, data){
       // Meldung von Server nach upload
       if (type == '1') {
-        var result = data.ttWsRequest.statusText
+        console.log(data);
+        $scope.$apply(function($scope){
+          $scope.files = data;
+        });
+        if ($scope.files[0].completeStatus != 'danger') $scope.btnImport = '';
+        else $scope.btnImport = 'false';
       }
       // Upload progress
       else if (type = '2') {
@@ -93,9 +99,12 @@ app.factory('uploadService', ['$http', function ($http) {
     }
 
     function completeHandler(event){
-	    file.completeTxt = event.target.responseText;
+        var x2js = new X2JS();
+        var data = x2js.xml_str2json(event.target.responseText);
+	    file.completeTxt = data.dsWebService.ttWsInformation.body;
+	    file.completeStatus = data.dsWebService.ttWsInformation.type;
 	    file.isSuccess = true;
-        gcallObj('2',gfiles);
+        gcallObj('1',gfiles);
     }
     function errorHandler(event){
 	    file.isError = true;
