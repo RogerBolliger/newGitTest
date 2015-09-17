@@ -1,16 +1,17 @@
 
 /********** Controller für Upload **********************/
-app.controller("uploadFilesCtrl", ['$scope', 'uploadService', function ($scope, uploadService) {
+app.controller("uploadFilesCtrl", ['$scope', 'uploadService', 'userService', function ($scope, uploadService, userService) {
 
     var rootUrl = 'http://localhost:8080/cgi-bin/cgiip.exe/WService=wsbroker1/adz/user.p?serviceName=uploadFile';
 
     $scope.btnDownRates  = '';
     $scope.btnBrowse     = '';
     $scope.btnUpload     = '';
-    $scope.btnImport     = 'false';
+    $scope.btnImport     = '';
     $scope.btnImpLog     = 'false';
     $scope.btnProcess    = 'false';
     $scope.btnDownReport = '';
+
 
     $scope.addToFileList = function(element) {
 
@@ -51,6 +52,19 @@ app.controller("uploadFilesCtrl", ['$scope', 'uploadService', function ($scope, 
     $scope.uploadFileList = function () {
         uploadService.uploadFile($scope.files,$scope.callObj);
     }
+
+    $scope.importData = function(index){
+        var service = 'user.p?serviceName=processRates';
+        var params  = '&fileName=' + $scope.files[0].name;
+
+        callObj = function (data) {
+            console.log(data);
+        }
+
+        userService.getData(callObj, service, params);
+
+    }
+
 
     var data = {a:1, b:2, c:3};
     var json = JSON.stringify(data);

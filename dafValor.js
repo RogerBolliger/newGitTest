@@ -18,8 +18,21 @@
 
 /* ***************************  Definitions  ************************** */
 
-DEFINE TEMP-TABLE ttBenutzer NO-UNDO LIKE adb_benutzer
-      {shared/web/webservice_ttaddfields.i}.
+DEF TEMP-TABLE ttwebin
+  FIELD paramName AS CHAR
+  FIELD paramValue AS CHAR.
+
+DEFINE TEMP-TABLE dafValor NO-UNDO LIKE TNA_DAF_VALOR
+    FIELD valorenText AS CHAR
+   {shared/web/webservice_ttaddfields.i}.
+
+DEFINE TEMP-TABLE instrument NO-UNDO LIKE zdv_valor
+   FIELD nval AS CHAR
+   FIELD isin AS CHAR
+   {shared/web/webservice_ttaddfields.i}.
+
+DEFINE TEMP-TABLE dafRates NO-UNDO LIKE tna_daf_rates
+   {shared/web/webservice_ttaddfields.i}.
 
 DEF TEMP-TABLE ttRates 
   FIELD field01 AS CHAR
@@ -31,6 +44,29 @@ DEF TEMP-TABLE ttRates
   FIELD field07 AS CHAR
   FIELD field08 AS CHAR
   FIELD fieldError AS CHAR.
+
+DEFINE INPUT PARAMETER TABLE FOR ttwebin.
+
+DEFINE VARIABLE coutput        AS CHARACTER   NO-UNDO.
+DEFINE VARIABLE cLine          AS CHARACTER   NO-UNDO.
+
+
+coutput  = ENTRY(2,SESSION:PARAMETER).
+coutput = ENTRY(1,coutput,'.') + '.json'.
+
+
+{shared/web/wservices.i}
+
+/*{src/web2/wrap-cgi.i}*/
+
+wServiceMainStandard().
+
+
+INPUT FROM VALUE(cOutput).
+REPEAT:
+  IMPORT UNFORMATTED cline.
+  PUT UNFORMATTED cline SKIP.
+END.
 
 /* _UIB-CODE-BLOCK-END */
 &ANALYZE-RESUME
@@ -58,7 +94,7 @@ DEF TEMP-TABLE ttRates
    Allow: 
    Frames: 0
    Add Fields to: Neither
-   Other Settings: CODE-ONLY COMPILE
+   Other Settings: CODE-ONLY
  */
 &ANALYZE-RESUME _END-PROCEDURE-SETTINGS
 
@@ -73,16 +109,6 @@ DEF TEMP-TABLE ttRates
                                                                         */
 &ANALYZE-RESUME
 
-&ANALYZE-SUSPEND _UIB-CODE-BLOCK _CUSTOM _INCLUDED-LIB Procedure 
-/* ************************* Included-Libraries *********************** */
-
-{src/web2/wrap-cgi.i}
-{shared/web/wservices.i}
-
-/* _UIB-CODE-BLOCK-END */
-&ANALYZE-RESUME
-
-
  
 
 
@@ -91,7 +117,8 @@ DEF TEMP-TABLE ttRates
 
 /* ***************************  Main Block  *************************** */
 
-  wServiceMainStandard().
+ 
+
 
 /* Ende Main ********************************************************** */
 
@@ -100,6 +127,41 @@ DEF TEMP-TABLE ttRates
 
 
 /* **********************  Internal Procedures  *********************** */
+
+&IF DEFINED(EXCLUDE-checkValorAvail) = 0 &THEN
+
+&ANALYZE-SUSPEND _UIB-CODE-BLOCK _PROCEDURE checkValorAvail Procedure 
+PROCEDURE checkValorAvail :
+/*------------------------------------------------------------------------------
+  Purpose:     
+  Parameters:  <none>
+  Notes:       
+------------------------------------------------------------------------------*/
+  DEFINE VARIABLE cValor  AS CHARACTER   NO-UNDO.
+  
+  wServicePrepareResultDataSetOneTable(BUFFER dafValor:HANDLE).
+  
+  cValor = get-value('dafValor.NVAL').
+
+  DO WHILE LENGTH(cValor) < 9:
+    cValor = '0' + cValor.
+  END.
+
+  FIND FIRST zdv_nummer WHERE zdv_nummer.typ_cd = 'CH' AND zdv_nummer.n_val = cValor NO-LOCK NO-ERROR.
+  FIND FIRST zdv_valor OF zdv_nummer NO-LOCK NO-ERROR.
+      
+      /*wServiceAddInformation('OK','validate','valor available').*/
+
+  CREATE dafValor. 
+  ASSIGN dafValor.NVAL        = IF AVAIL zdv_nummer THEN zdv_nummer.n_val ELSE '' 
+         dafValor.valorenText = IF AVAIL zdv_valor THEN zdv_valor.tvak[1] ELSE 'Instrument does not exist'.
+
+END PROCEDURE.
+
+/* _UIB-CODE-BLOCK-END */
+&ANALYZE-RESUME
+
+&ENDIF
 
 &IF DEFINED(EXCLUDE-convertXls2Csv) = 0 &THEN
 
@@ -270,122 +332,10 @@ END PROCEDURE.
 
 &ENDIF
 
-&IF DEFINED(EXCLUDE-getData) = 0 &THEN
+&IF DEFINED(EXCLUDE-deleteDafValor) = 0 &THEN
 
-&ANALYZE-SUSPEND _UIB-CODE-BLOCK _PROCEDURE getData Procedure 
-PROCEDURE getData :
-/*------------------------------------------------------------------------------
-  Purpose:     
-  Parameters:  <none>
-  Notes:       
-------------------------------------------------------------------------------*/
-/*
-DEFINE DATASET dsOrder FOR ttOrder, ttOline, ttItem
-      DATA-RELATION OrderLine FOR ttOrder, ttOline
-          RELATION-FIELDS (OrderNum, OrderNum)
-      DATA-RELATION LineItem FOR ttOline, ttItem
-          RELATION-FIELDS (ItemNum, ItemNum).   
-          
-        */
-/*        
-DEFINE VAR bCustomer    AS HANDLE NO-UNDO.
-DEFINE VAR h-ttCustomer AS HANDLE NO-UNDO.   
-DEFINE VAR httCustomer  AS HANDLE NO-UNDO. 
-DEFINE VAR hDsSource    AS HANDLE NO-UNDO.
-DEFINE VAR hDs          AS HANDLE NO-UNDO.
-
-CREATE BUFFER bCustomer FOR TABLE "Customer".
-CREATE TEMP-TABLE h-ttCustomer.
-h-ttCustomer:CREATE-LIKE(bCustomer).
-h-ttCustomer:TEMP-TABLE-PREPARE("tt-Customer").
-httCustomer = h-ttCustomer:DEFAULT-BUFFER-HANDLE.
-
-/* we need a ProDataSet to fill*/      
-CREATE DATASET hDs.
-hDs:ADD-BUFFER(httCustomer).
-      
-CREATE DATA-SOURCE hDsSource.
-hDsSource:ADD-SOURCE-BUFFER(bCustomer,?).
-httCustomer:ATTACH-DATA-SOURCE(hDsSource).
-hDsSource:FILL-WHERE-STRING = "WHERE". /*...*/
-hDs:FILL().
-httCustomer:DETACH-DATA-SOURCE().
-*/
-END PROCEDURE.
-
-/* _UIB-CODE-BLOCK-END */
-&ANALYZE-RESUME
-
-&ENDIF
-
-&IF DEFINED(EXCLUDE-getUserlist) = 0 &THEN
-
-&ANALYZE-SUSPEND _UIB-CODE-BLOCK _PROCEDURE getUserlist Procedure 
-PROCEDURE getUserlist :
-/*------------------------------------------------------------------------------
-  Purpose:     
-  Parameters:  <none>
-  Notes:       
-------------------------------------------------------------------------------*/
-  DEFINE VARIABLE iZahler    AS INTEGER NO-UNDO.
-  DEFINE VARIABLE cNachname  AS CHARACTER   NO-UNDO.
-  
-  wServicePrepareResultDataSetOneTable(BUFFER ttBenutzer:HANDLE).
-
-  cNachname = get-value('searchUser'). 
-
-  FOR EACH adb_benutzer WHERE adb_benutzer.nachname begins cnachname NO-LOCK:
-
-      CREATE ttBenutzer.
-      BUFFER-COPY adb_benutzer TO ttBenutzer.
-      wServiceRegisterResultDataSet (BUFFER ttBenutzer:HANDLE, RECID(adb_benutzer)).
-
-  END.
-
-  
-END PROCEDURE.
-
-/* _UIB-CODE-BLOCK-END */
-&ANALYZE-RESUME
-
-&ENDIF
-
-&IF DEFINED(EXCLUDE-processRates) = 0 &THEN
-
-&ANALYZE-SUSPEND _UIB-CODE-BLOCK _PROCEDURE processRates Procedure 
-PROCEDURE processRates :
-/*------------------------------------------------------------------------------
-  Purpose:     
-  Parameters:  <none>
-  Notes:       
-------------------------------------------------------------------------------*/
-  DEFINE VARIABLE cFile AS  CHAR NO-UNDO.
-  DEFINE VARIABLE lcData AS LONGCHAR NO-UNDO.
-
-  lcData = wServiceGetRequestData().
-
-  wServiceShowRequestInformation().
-   
-  cfile = get-value('fileName').
-
-  cFile = SESSION:TEMP-DIR + cFile.
-  IF SEARCH(cFile) <> ? THEN DO:
-      RUN convertXls2Csv(INPUT cFile, OUTPUT cFile).
-      wServicePrepareResultDataSetOneTable(BUFFER ttRates:HANDLE).
-      RUN createTempRates(INPUT cFile).
-  END.
-
-END PROCEDURE.
-
-/* _UIB-CODE-BLOCK-END */
-&ANALYZE-RESUME
-
-&ENDIF
-
-&IF DEFINED(EXCLUDE-setUserlist) = 0 &THEN
-
-&ANALYZE-SUSPEND _UIB-CODE-BLOCK _PROCEDURE setUserlist Procedure 
-PROCEDURE setUserlist :
+&ANALYZE-SUSPEND _UIB-CODE-BLOCK _PROCEDURE deleteDafValor Procedure 
+PROCEDURE deleteDafValor :
 /*------------------------------------------------------------------------------
   Purpose:     
   Parameters:  <none>
@@ -394,19 +344,32 @@ PROCEDURE setUserlist :
   DEFINE VARIABLE lcData AS LONGCHAR NO-UNDO.
   DEFINE VARIABLE cdata  AS CHARACTER   NO-UNDO.
 
+  
   lcData = wServiceGetRequestData().
-
+  
   /*wServiceShowRequestInformation().*/
-  
-  wServicePrepareResultDataSetOneTable(BUFFER ttBenutzer:HANDLE).
-  
-  dsWebService:read-xml('longchar', lcData, "empty", ?, ?, ?, ? ).
+   
+  wServicePrepareResultDataSetOneTable(BUFFER dafValor:HANDLE).
+    
+  dsWebService:read-json('longchar', lcData, "empty" ).
 
-  FOR EACH ttBenutzer EXCLUSIVE:
-    ttBenutzer.wsModState = ttbenutzer.benutzer.
-    wServiceDebugLog ("User: " + ttBenutzer.wsModState).
+  FIND FIRST dafValor NO-LOCK NO-ERROR.
+  IF AVAIL dafValor THEN DO:
+    FIND FIRST tna_daf_valor WHERE RECID(tna_daf_valor) = dafValor.wsRecid EXCLUSIVE NO-ERROR.
+    IF NOT AVAIL tna_daf_valor THEN DO:
+      /* Valor in der Zwischenzeit gelöscht */
 
+    END.
+    ELSE DO:
+      /* check ob gelöscht werden kann */
+      /* ja */
+      /* ........
+      */
+      /* nein */
+      wServiceAddInformation('error','suberror','Deletion not possible because of pending dependencies').
+    END.
   END.
+
 END PROCEDURE.
 
 /* _UIB-CODE-BLOCK-END */
@@ -414,10 +377,173 @@ END PROCEDURE.
 
 &ENDIF
 
-&IF DEFINED(EXCLUDE-uploadFile) = 0 &THEN
+&IF DEFINED(EXCLUDE-getDafValorenList) = 0 &THEN
 
-&ANALYZE-SUSPEND _UIB-CODE-BLOCK _PROCEDURE uploadFile Procedure 
-PROCEDURE uploadFile :
+&ANALYZE-SUSPEND _UIB-CODE-BLOCK _PROCEDURE getDafValorenList Procedure 
+PROCEDURE getDafValorenList :
+/*------------------------------------------------------------------------------
+  Purpose:     
+  Parameters:  <none>
+  Notes:       
+------------------------------------------------------------------------------*/
+  wServicePrepareResultDataSetOneTable(BUFFER dafValor:HANDLE).
+  
+  /*cName = get-value('searchUsers').*/
+
+  FOR EACH tna_daf_valor NO-LOCK,
+    FIRST ZDV_Nummer WHERE ZDV_Nummer.N_VAL =  TNA_DAF_VALOR.nval AND 
+        ZDV_Nummer.Typ_CD = 'CH' AND ZDV_Nummer.Val_ID <> 0 NO-LOCK,
+    FIRST ZDV_Valor OF ZDV_Nummer NO-LOCK:
+    
+      CREATE dafValor.
+      BUFFER-COPY tna_daf_valor TO dafValor.
+      dafValor.valorenText = zdv_valor.tvak[1].
+
+      wServiceRegisterResultDataSet (BUFFER dafValor:HANDLE, RECID(tna_daf_valor)).
+
+
+  END.
+
+END PROCEDURE.
+
+/* _UIB-CODE-BLOCK-END */
+&ANALYZE-RESUME
+
+&ENDIF
+
+&IF DEFINED(EXCLUDE-getInstrument) = 0 &THEN
+
+&ANALYZE-SUSPEND _UIB-CODE-BLOCK _PROCEDURE getInstrument Procedure 
+PROCEDURE getInstrument :
+/*------------------------------------------------------------------------------
+  Purpose:     
+  Parameters:  <none>
+  Notes:       
+------------------------------------------------------------------------------*/
+  DEFINE VARIABLE iCounter AS INTEGER     NO-UNDO.
+
+  DEF BUFFER bzdv_nummer FOR zdv_nummer.
+
+  wServicePrepareResultDataSetOneTable(BUFFER instrument:HANDLE).
+  
+  FOR EACH zdv_nummer NO-LOCK WHERE ZDV_Nummer.typ_cd = 'CH',
+    FIRST ZDV_Valor OF ZDV_Nummer NO-LOCK:
+    iCounter = iCounter + 1.
+    IF iCounter = 200 THEN LEAVE.
+    
+    FIND FIRST bzdv_nummer WHERE bzdv_nummer.typ_cd = 'ISIN' AND
+      bzdv_nummer.val_id = zdv_nummer.val_id NO-LOCK NO-ERROR.
+
+    CREATE instrument.
+    BUFFER-COPY zdv_valor TO instrument.
+    instrument.nval = zdv_nummer.n_val.
+    ASSIGN instrument.isin = IF AVAIL bzdv_nummer THEN bzdv_nummer.n_val ELSE ''.
+
+    wServiceRegisterResultDataSet (BUFFER instrument:HANDLE, RECID(zdv_valor)).
+
+  END.
+
+END PROCEDURE.
+
+/* _UIB-CODE-BLOCK-END */
+&ANALYZE-RESUME
+
+&ENDIF
+
+&IF DEFINED(EXCLUDE-newDafValor) = 0 &THEN
+
+&ANALYZE-SUSPEND _UIB-CODE-BLOCK _PROCEDURE newDafValor Procedure 
+PROCEDURE newDafValor :
+/*------------------------------------------------------------------------------
+  Purpose:     
+  Parameters:  <none>
+  Notes:       
+------------------------------------------------------------------------------*/
+  wServicePrepareResultDataSetOneTable(BUFFER dafValor:HANDLE).  
+ 
+  CREATE dafValor.
+  ASSIGN dafValor.valorenText = 'new Instrument'.
+
+END PROCEDURE.
+
+/* _UIB-CODE-BLOCK-END */
+&ANALYZE-RESUME
+
+&ENDIF
+
+&IF DEFINED(EXCLUDE-setDafValor) = 0 &THEN
+
+&ANALYZE-SUSPEND _UIB-CODE-BLOCK _PROCEDURE setDafValor Procedure 
+PROCEDURE setDafValor :
+/*------------------------------------------------------------------------------
+  Purpose:     
+  Parameters:  <none>
+  Notes:       
+------------------------------------------------------------------------------*/
+  DEFINE VARIABLE lcData AS LONGCHAR NO-UNDO.
+  DEFINE VARIABLE cdata  AS CHARACTER   NO-UNDO.
+
+  
+  lcData = wServiceGetRequestData().
+  
+  /*wServiceShowRequestInformation().*/
+   
+  wServicePrepareResultDataSetOneTable(BUFFER dafValor:HANDLE).
+    
+  dsWebService:read-json('longchar', lcData, "empty" ).
+
+  FIND FIRST dafValor NO-LOCK NO-ERROR.
+  IF AVAIL dafValor THEN DO:
+    FIND FIRST tna_daf_valor WHERE RECID(tna_daf_valor) = dafValor.wsRecid EXCLUSIVE NO-ERROR.
+    IF NOT AVAIL tna_daf_valor THEN DO:
+      /* Valor in der Zwischenzeit gelöscht */
+
+    END.
+    ELSE DO:
+
+      ASSIGN tna_daf_valor.bemerkung  = dafValor.bemerkung
+             tna_daf_valor.erf_datum  = dafValor.erf_datum
+             tna_daf_valor.aktiv      = dafValor.aktiv
+             tna_daf_valor.whrc       = dafValor.whrc
+             tna_daf_valor.berechnung = dafValor.berechnung.
+      wServiceRegisterResultDataSet (BUFFER dafValor:HANDLE, RECID(tna_daf_valor)).
+    END.
+  END.
+
+END PROCEDURE.
+
+/* _UIB-CODE-BLOCK-END */
+&ANALYZE-RESUME
+
+&ENDIF
+
+&IF DEFINED(EXCLUDE-test) = 0 &THEN
+
+&ANALYZE-SUSPEND _UIB-CODE-BLOCK _PROCEDURE test Procedure 
+PROCEDURE test :
+/*------------------------------------------------------------------------------
+  Purpose:     
+  Parameters:  <none>
+  Notes:       
+------------------------------------------------------------------------------*/
+  DEFINE VARIABLE cFile AS CHARACTER   NO-UNDO.
+  
+  cFile = SESSION:TEMP-DIR + 'table.xlsx'.
+
+  RUN convertXls2Csv(INPUT cFile, OUTPUT cFile).
+  RUN createTempRates(INPUT cFile).
+
+END PROCEDURE.
+
+/* _UIB-CODE-BLOCK-END */
+&ANALYZE-RESUME
+
+&ENDIF
+
+&IF DEFINED(EXCLUDE-uploadFiles) = 0 &THEN
+
+&ANALYZE-SUSPEND _UIB-CODE-BLOCK _PROCEDURE uploadFiles Procedure 
+PROCEDURE uploadFiles :
 /*------------------------------------------------------------------------------
   Purpose:     
   Parameters:  <none>
@@ -500,15 +626,13 @@ END FUNCTION.
            cDate = ENTRY(2,cFile,'_')
            cExtention = ENTRY(2,cDate,'.')
            cDate = ENTRY(1,cDate,'.').
-    /*
+    
     FIND FIRST zdv_nummer WHERE zdv_nummer.typ_cd = 'ISIN' AND 
         zdv_nummer.n_val = cISIN NO-LOCK NO-ERROR.
     IF NOT AVAIL zdv_nummer THEN DO:
         ASSIGN cType = 'danger' cMessage = 'Instrument does not exist'.
     END.
-    ELSE
-    */
-    DO:
+    ELSE DO:
         IF LENGTH(cDate) <> 6 THEN 
             ASSIGN cType = 'danger' cMessage = "Date has wrong format! expected 'yyyymm'".
         ELSE DO:
