@@ -31,12 +31,12 @@ app.controller("uploadFilesCtrl", ['$scope', 'uploadService', 'userService', fun
         $scope.btnUpload = '';
     }
 
-    $scope.callObj = function(type, data){
+    $scope.callObj = function(type, files, data){
       // Meldung von Server nach upload
       if (type == '1') {
         console.log(data);
         $scope.$apply(function($scope){
-          $scope.files = data;
+          $scope.files = files;
         });
         if ($scope.files[0].completeStatus != 'danger') $scope.btnImport = '';
         else $scope.btnImport = 'false';
@@ -44,7 +44,7 @@ app.controller("uploadFilesCtrl", ['$scope', 'uploadService', 'userService', fun
       // Upload progress
       else if (type = '2') {
         $scope.$apply(function($scope){
-          $scope.files = data;
+          $scope.files = files;
         });
       }
     }
@@ -118,7 +118,7 @@ app.factory('uploadService', ['$http', function ($http) {
 	    file.completeTxt = data.dsWebService.ttWsInformation.body;
 	    file.completeStatus = data.dsWebService.ttWsInformation.type;
 	    file.isSuccess = true;
-        gcallObj('1',gfiles);
+        gcallObj('1',gfiles,data);
     }
     function errorHandler(event){
 	    file.isError = true;
