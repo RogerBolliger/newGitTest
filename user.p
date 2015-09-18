@@ -251,13 +251,13 @@ PROCEDURE createTempRates :
           ELSE ttRates.field01 = cField.        
         END.
         ELSE IF iCounter = 3 THEN DO:
-          cRate = REPLACE(cField,',','').
+          cRate = REPLACE(cField,',','.').
           ASSIGN dRate = DEC(cRate) NO-ERROR.
           IF ERROR-STATUS:ERROR THEN DO:
             ASSIGN cMessage = cMessage + '/' + 'Invalid decimal format' dRate = ?.
           END.
           IF dRate <> ? THEN ttRates.field03 = STRING(dRate,'>>>,>>>,>>9.999999999').
-          ELSE ttRates.field03 = cField.        
+          ELSE ttRates.field03 = cField.       
         END.
         ELSE DO:
           hRates:BUFFER-FIELD('field' + STRING(iCounter,'99')):BUFFER-VALUE = cField.      
@@ -389,6 +389,41 @@ END PROCEDURE.
 
 &ENDIF
 
+&IF DEFINED(EXCLUDE-saveRates) = 0 &THEN
+
+&ANALYZE-SUSPEND _UIB-CODE-BLOCK _PROCEDURE saveRates Procedure 
+PROCEDURE saveRates :
+/*------------------------------------------------------------------------------
+  Purpose:     
+  Parameters:  <none>
+  Notes:       
+------------------------------------------------------------------------------*/
+  DEFINE VARIABLE lcData AS LONGCHAR NO-UNDO.
+  DEFINE VARIABLE cdata  AS CHARACTER   NO-UNDO.
+
+  lcData = wServiceGetRequestData().
+
+  /*wServiceShowRequestInformation().*/
+  
+  wServicePrepareResultDataSetOneTable(BUFFER ttRates:HANDLE).
+  
+  MESSAGE 'alles ok'
+      VIEW-AS ALERT-BOX INFO BUTTONS OK.
+
+  dsWebService:read-xml('longchar', lcData, "empty", ?, ?, ?, ? ).
+
+  FOR EACH ttRates EXCLUSIVE:
+    DISP ttRates.
+
+  END.
+
+END PROCEDURE.
+
+/* _UIB-CODE-BLOCK-END */
+&ANALYZE-RESUME
+
+&ENDIF
+
 &IF DEFINED(EXCLUDE-setUserlist) = 0 &THEN
 
 &ANALYZE-SUSPEND _UIB-CODE-BLOCK _PROCEDURE setUserlist Procedure 
@@ -481,12 +516,17 @@ END FUNCTION.
   DEFINE VARIABLE cIndex AS CHARACTER   NO-UNDO.
 
   DEFINE VARIABLE cISIN      AS CHARACTER   NO-UNDO.
+  DEFINE VARIABLE ctvak      AS CHARACTER   NO-UNDO.
   DEFINE VARIABLE cDate      AS CHARACTER   NO-UNDO.
   DEFINE VARIABLE cExtention AS CHARACTER   NO-UNDO.
   DEFINE VARIABLE cType      AS CHARACTER   NO-UNDO.
   DEFINE VARIABLE cMessage   AS CHARACTER   NO-UNDO.
   DEFINE VARIABLE dDate      AS DATE        NO-UNDO.
   DEFINE VARIABLE cFileCsv   AS CHARACTER   NO-UNDO.
+  DEFINE VARIABLE cMonthList AS CHARACTER   NO-UNDO.
+
+  cMonthList = 'Jan,Feb,Mar,Apr,Mai,Jun,Jul,Aug,Sep,Okt,Nov,Dec'.
+
 
   lcData = wServiceGetRequestData().
 
@@ -507,13 +547,15 @@ END FUNCTION.
            cDate = ENTRY(2,cFile,'_')
            cExtention = ENTRY(2,cDate,'.')
            cDate = ENTRY(1,cDate,'.').
-    /*
+    /* 
     FIND FIRST zdv_nummer WHERE zdv_nummer.typ_cd = 'ISIN' AND 
         zdv_nummer.n_val = cISIN NO-LOCK NO-ERROR.
     IF NOT AVAIL zdv_nummer THEN DO:
         ASSIGN cType = 'danger' cMessage = 'Instrument does not exist'.
     END.
     ELSE
+      FIND FIRST zdv_valor OF zdv_nummer NO-LOCK NO-ERROR.
+      IF AVAIL zdv_valor THEN ctvak = zdv_valor.tvak[1]. 
     */
     DO:
         IF LENGTH(cDate) <> 6 THEN 
@@ -537,6 +579,7 @@ END FUNCTION.
           RUN convertXls2Csv(INPUT cFile, OUTPUT cFile).
         wServicePrepareResultDataSetOneTable(BUFFER ttRates:HANDLE).
         RUN createTempRates(INPUT cFile).
+        wServiceAddInformation('panel-heading','','Rates for '  + cisin + ' ' + ctvak + ' '  + ENTRY(INT(SUBSTR(cDate,5,2)),cMonthList) + ' ' + SUBSTR(cDate,1,4)).
       END.
       
   END.
