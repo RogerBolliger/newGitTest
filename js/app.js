@@ -53,6 +53,22 @@ app.factory("userService", ['$http', '$q', function ($http, $q) {
         return defer.promise;
     }
 
+    svc.setData = function(callObj,service,object){
+      var x2js = new X2JS();
+      console.log(object);
+      var string = x2js.json2xml_str(object);
+      console.log(string);
+      $http.post(rootUrl + service, string).then(
+        function(data){
+           svc.data = x2js.xml_str2json(data.data);
+           svc.data = svc.data.dsWebService;
+           callObj(svc.data);
+        },
+        function(error){
+        }
+      )
+    }
+
     return svc;
 }]);
 

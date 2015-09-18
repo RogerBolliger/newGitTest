@@ -41,6 +41,14 @@
         display: block;
         }
     </style>
+    <!-- Selected row bei Table -->
+    <style>
+        .selected {
+        background-color:#0088CC;
+        color:white;
+        font-weight:normal;
+        }
+    </style>
 
     
 </head>
@@ -60,7 +68,7 @@
                 <li role="presentation"><a href="#/upload1">File upload 1</a></li>
             </ul>
         </div>
-        <div ng-view=""></div>
+        <div class="col-sm-10" ng-view=""></div>
     </div>
 </div>
 

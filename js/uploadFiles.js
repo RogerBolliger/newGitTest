@@ -31,15 +31,24 @@ app.controller("uploadFilesCtrl", ['$scope', 'uploadService', 'userService', fun
         $scope.btnUpload = '';
     }
 
+    $scope.rates = null;
     $scope.callObj = function(type, files, data){
       // Meldung von Server nach upload
       if (type == '1') {
         console.log(data);
+        /*********** Rates *************/
         $scope.$apply(function($scope){
           $scope.files = files;
         });
-        if ($scope.files[0].completeStatus != 'danger') $scope.btnImport = '';
-        else $scope.btnImport = 'false';
+        if ($scope.files[0].completeStatus != 'danger'){
+          $scope.rates = data.dsWebService.ttRates;
+          $scope.ratesPanelHeading = data.dsWebService.ttWsInformation[0].body;
+          $scope.$apply(function(){$scope.showRates = true;});
+          $scope.btnImport = '';
+        }
+        else {
+          $scope.btnImport = 'false';
+        }
       }
       // Upload progress
       else if (type = '2') {
@@ -53,18 +62,22 @@ app.controller("uploadFilesCtrl", ['$scope', 'uploadService', 'userService', fun
         uploadService.uploadFile($scope.files,$scope.callObj);
     }
 
-    $scope.importData = function(index){
-        var service = 'user.p?serviceName=processRates';
-        var params  = '&fileName=' + $scope.files[0].name;
+    $scope.saveRates = function(){
+        var service = 'user.p?serviceName=saveRates';
+        var object = {ttRates: [$scope.rates]};
 
         callObj = function (data) {
             console.log(data);
         }
 
-        userService.getData(callObj, service, params);
+        userService.setData(callObj, service, object);
 
     }
 
+    $scope.selectedRow = null;
+    $scope.setClickedRow = function(index){
+      $scope.selectedRow = index;
+    }
 
     var data = {a:1, b:2, c:3};
     var json = JSON.stringify(data);
@@ -115,8 +128,8 @@ app.factory('uploadService', ['$http', function ($http) {
     function completeHandler(event){
         var x2js = new X2JS();
         var data = x2js.xml_str2json(event.target.responseText);
-	    file.completeTxt = data.dsWebService.ttWsInformation.body;
-	    file.completeStatus = data.dsWebService.ttWsInformation.type;
+	    file.completeTxt = data.dsWebService.ttWsInformation[1].body;
+	    file.completeStatus = data.dsWebService.ttWsInformation[1].type;
 	    file.isSuccess = true;
         gcallObj('1',gfiles,data);
     }
@@ -183,4 +196,18 @@ app.directive('myDownload', function ($compile) {
             )(scope));
         }
     };
+});
+
+app.directive('stringToNumber', function() {
+  return {
+    require: 'ngModel',
+    link: function(scope, element, attrs, ngModel) {
+      ngModel.$parsers.push(function(value) {
+        return '' + value;
+      });
+      ngModel.$formatters.push(function(value) {
+        return parseFloat(value, 10);
+      });
+    }
+  };
 });
